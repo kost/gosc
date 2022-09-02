@@ -1,0 +1,2 @@
+# gosc
+Go Shellcode
