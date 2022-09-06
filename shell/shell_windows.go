@@ -49,7 +49,7 @@ func ExecShellcode(shellcode []byte) {
 
 // Decodes base64 encoded shellcode
 // and execute within same process.
-func ExecShellCode_b64(encShellcode string) {
+func ExecShellcode_b64(encShellcode string) {
 	if encShellcode != "" {
 		if shellcode, err := base64.StdEncoding.DecodeString(encShellcode); err == nil {
 			ExecShellcode(shellcode)
